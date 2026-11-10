@@ -2,3 +2,6 @@
 .backup/
 .claude/
 .DS_Store
+
+# 홍보 영상(용량이 커서 사이트에 올리지 않는다)
+promo/
