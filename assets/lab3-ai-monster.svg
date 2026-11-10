@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-labelledby="t3">
+  <title id="t3">체험 3: 카메라 앞에서 손을 움직이면 AI가 손을 알아보고, 화면 속 손이 몬스터를 잡는 모습</title>
+  <style>
+    text { font-family: "Noto Sans KR", sans-serif; font-weight: 900; }
+    .loop { animation-duration: 4s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+    .cur { animation-name: reach; }
+    @keyframes reach { 0%, 10% { transform: translate(0, 0); } 42%, 55% { transform: translate(118px, -34px); } 85%, 100% { transform: translate(0, 0); } }
+    .hand { animation-name: move; }
+    @keyframes move { 0%, 10% { transform: translate(0, 0); } 42%, 55% { transform: translate(-16px, -20px); } 85%, 100% { transform: translate(0, 0); } }
+    .mon { animation-name: caught; transform-box: fill-box; transform-origin: center; }
+    @keyframes caught { 0%, 42% { transform: scale(1); opacity: 1; } 50%, 82% { transform: scale(0); opacity: 0; } 92%, 100% { transform: scale(1); opacity: 1; } }
+    .bob { animation-name: bob; animation-duration: 1s; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    .got { animation-name: got; }
+    @keyframes got { 0%, 44% { opacity: 0; } 48%, 80% { opacity: 1; } 84%, 100% { opacity: 0; } }
+    .s2 { animation-name: s2; } .s3 { animation-name: got; }
+    @keyframes s2 { 0%, 44% { opacity: 1; } 48%, 80% { opacity: 0; } 84%, 100% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .loop { animation: none; } .got, .s3 { opacity: 1; } .s2 { opacity: 0; } }
+  </style>
+
+  <rect x="0" y="0" width="480" height="360" fill="#fafaf8"/>
+
+  <!-- 노트북 -->
+  <rect x="34" y="40" width="270" height="190" rx="10" fill="#171717"/>
+  <circle cx="169" cy="48" r="4" fill="#7cf0a0"/>
+  <rect x="46" y="56" width="246" height="162" fill="#fff1ec"/>
+  <rect x="46" y="192" width="246" height="26" fill="#ffd9cc"/>
+  <text class="s2 loop" x="58" y="78" font-size="12" fill="#171717">잡은 몬스터 2</text>
+  <text class="s3 loop" x="58" y="78" font-size="12" fill="#ff542a">잡은 몬스터 3</text>
+
+  <!-- 몬스터 -->
+  <g class="mon loop">
+    <g class="bob loop">
+      <path d="M202 114 l6 -16 l8 16 z M226 114 l8 -16 l6 16 z" fill="#ff542a"/>
+      <rect x="194" y="110" width="54" height="50" rx="22" fill="#171717"/>
+      <circle cx="210" cy="132" r="8" fill="#fff"/><circle cx="232" cy="132" r="8" fill="#fff"/>
+      <circle cx="212" cy="133" r="3.5" fill="#171717"/><circle cx="234" cy="133" r="3.5" fill="#171717"/>
+      <path d="M210 147 h22" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <path d="M214 147 v4 M228 147 v4" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <rect x="202" y="158" width="10" height="8" rx="3" fill="#171717"/><rect x="230" y="158" width="10" height="8" rx="3" fill="#171717"/>
+    </g>
+  </g>
+  <g class="got loop">
+    <rect x="183" y="92" width="76" height="26" rx="13" fill="#ff542a"/>
+    <text x="221" y="110" font-size="13" fill="#fff" text-anchor="middle">잡았다!</text>
+  </g>
+
+  <!-- 화면 속 손 커서 -->
+  <g class="cur loop">
+    <rect x="80" y="160" width="24" height="20" rx="7" fill="#ff542a"/>
+    <rect x="81" y="147" width="5" height="16" rx="2.5" fill="#ff542a"/>
+    <rect x="87" y="144" width="5" height="18" rx="2.5" fill="#ff542a"/>
+    <rect x="93" y="145" width="5" height="17" rx="2.5" fill="#ff542a"/>
+    <rect x="99" y="149" width="5" height="14" rx="2.5" fill="#ff542a"/>
+    <rect x="72" y="162" width="10" height="5" rx="2.5" fill="#ff542a" transform="rotate(-30 77 164)"/>
+  </g>
+
+  <path d="M20 230 h298 l-14 18 h-270 z" fill="#3a3a3a"/>
+  <rect x="40" y="262" width="250" height="28" rx="14" fill="#fff" stroke="#e2e1dc" stroke-width="2"/>
+  <text x="165" y="281" font-size="14" fill="#171717" text-anchor="middle">손을 움직여 몬스터를 잡아요!</text>
+
+  <!-- 진짜 손과 AI 인식 상자 -->
+  <g class="hand loop">
+    <rect x="368" y="170" width="16" height="48" rx="8" fill="#ffcf9e"/>
+    <rect x="386" y="160" width="16" height="58" rx="8" fill="#ffcf9e"/>
+    <rect x="404" y="166" width="16" height="52" rx="8" fill="#ffcf9e"/>
+    <rect x="422" y="180" width="14" height="40" rx="7" fill="#ffcf9e"/>
+    <rect x="364" y="206" width="74" height="60" rx="18" fill="#ffcf9e"/>
+    <rect x="346" y="214" width="16" height="40" rx="8" fill="#ffcf9e" transform="rotate(-30 354 234)"/>
+    <rect x="378" y="266" width="46" height="34" fill="#171717"/>
+    <rect x="334" y="146" width="122" height="134" rx="4" fill="none" stroke="#2bb673" stroke-width="4" stroke-dasharray="10 6"/>
+    <rect x="334" y="118" width="104" height="24" rx="4" fill="#2bb673"/>
+    <text x="386" y="135" font-size="13" fill="#fff" text-anchor="middle">손 인식 92%</text>
+  </g>
+  <rect x="330" y="312" width="132" height="28" rx="14" fill="#fff" stroke="#e2e1dc" stroke-width="2"/>
+  <text x="396" y="331" font-size="13" fill="#171717" text-anchor="middle">AI가 손을 찾아요</text>
+</svg>
