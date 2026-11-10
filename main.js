@@ -1,16 +1,16 @@
 /*
  * 디랩 코딩 페스티벌 화면 스크립트.
  * 위 FESTIVAL 만 고치면 날짜·예약 링크가 바뀐다. reserveUrl 이 비어 있으면 큰 예약 단추는 "곧 열려요" 상태로 둔다.
+ * 장면 넘김(GSAP ScrollTrigger)은 맨 아래. 움직임 줄이기 설정이거나 GSAP 를 못 불러오면 평범한 세로 페이지로 보인다.
  */
 const FESTIVAL = {
-  date: "11/28(토)",   // 오전 10시는 화면 문구에 들어 있다
+  date: "11/28(토)",
   reserveUrl: "https://forms.gle/8bHkkiPaHuo6ct6r7",   // 예약 신청 구글폼 (응답 주소)
 };
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* ---------- 날짜·예약 단추 ---------- */
-document.querySelectorAll('[data-fest="date"]').forEach((el) => { el.textContent = FESTIVAL.date; });
+/* ---------- 예약 단추 ---------- */
 document.querySelectorAll("[data-reserve]").forEach((btn) => {
   if (FESTIVAL.reserveUrl) {
     btn.href = FESTIVAL.reserveUrl;
@@ -23,75 +23,10 @@ document.querySelectorAll("[data-reserve]").forEach((btn) => {
   }
 });
 const reserveNote = document.querySelector("[data-reserve-note]");
-if (FESTIVAL.reserveUrl && reserveNote) reserveNote.textContent = "신청서는 새 창에서 열려요. 원하는 회차가 마감되었다면 대기 접수를 남겨 주세요.";
-
-/* ---------- 시간표 자리: 0자리면 대기 접수로 안내 ---------- */
-document.querySelectorAll("[data-seats]").forEach((cell) => {
-  const total = 4;
-  const left = Number(cell.dataset.seats);
-  const seats = Array.from({ length: total }, (_, i) => `<span class="seat${i >= left ? " is-taken" : ""}"></span>`).join("");
-  let label = "예약 전";
-  if (FESTIVAL.reserveUrl) label = left > 0 ? `${left}자리 남음` : "마감 · 대기 접수";
-  const full = FESTIVAL.reserveUrl && left === 0 ? " seats--full" : "";
-  cell.innerHTML = `<span class="seats${full}" aria-label="${label}">${seats}<span class="seats__count">${label}</span></span>`;
-});
-
-/* ---------- 모바일 탭 ---------- */
-const selectTab = (tabs, index) => {
-  [...tabs.children].forEach((b, i) => b.setAttribute("aria-selected", String(i === index)));
-};
-
-// 체험 소개: 탭을 누르면 카드로 넘어가고, 카드를 옆으로 밀면 탭이 따라온다
-const labTabs = document.querySelector('[data-tabs="labs"]');
-const labTrack = document.querySelector(".labs__track");
-const labCards = [...labTrack.querySelectorAll(".lab")];
-labTabs.addEventListener("click", (e) => {
-  const btn = e.target.closest("button");
-  if (!btn) return;
-  const index = [...labTabs.children].indexOf(btn);
-  selectTab(labTabs, index);
-  labTrack.scrollTo({ left: labCards[index].offsetLeft - labTrack.offsetLeft - parseFloat(getComputedStyle(labTrack).paddingLeft), behavior: reduceMotion ? "auto" : "smooth" });
-  // 카드 아래쪽을 읽던 중이면 카드 머리로 올려 준다
-  const top = labTrack.getBoundingClientRect().top;
-  const stickyBottom = labTabs.getBoundingClientRect().bottom;
-  if (top < stickyBottom - 1) window.scrollBy({ top: top - stickyBottom, behavior: reduceMotion ? "auto" : "smooth" });
-});
-let labScrollTimer;
-labTrack.addEventListener("scroll", () => {
-  clearTimeout(labScrollTimer);
-  labScrollTimer = setTimeout(() => {
-    const center = labTrack.scrollLeft + labTrack.clientWidth / 2;
-    let nearest = 0;
-    labCards.forEach((card, i) => {
-      if (Math.abs(card.offsetLeft - labTrack.offsetLeft + card.offsetWidth / 2 - center) < Math.abs(labCards[nearest].offsetLeft - labTrack.offsetLeft + labCards[nearest].offsetWidth / 2 - center)) nearest = i;
-    });
-    selectTab(labTabs, nearest);
-  }, 80);
-}, { passive: true });
-
-// 시간표: 탭을 누르면 그 체험의 네 회차만 보인다
-const scheduleTabs = document.querySelector('[data-tabs="schedule"]');
-const servers = document.querySelector(".servers");
-scheduleTabs.addEventListener("click", (e) => {
-  const btn = e.target.closest("button");
-  if (!btn) return;
-  const index = [...scheduleTabs.children].indexOf(btn);
-  selectTab(scheduleTabs, index);
-  servers.dataset.lab = String(index + 1);
-});
-
-/* ---------- 이니셜 키캡 ---------- */
-const initials = document.getElementById("initials");
-const keycapText = document.getElementById("keycap-text");
-initials.addEventListener("input", () => {
-  const v = initials.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
-  initials.value = v;
-  keycapText.textContent = v || "JK";
-  if (!reduceMotion && window.gsap) gsap.fromTo(".keycap--name", { y: -12 }, { y: 0, duration: 0.4, ease: "bounce.out" });
-});
+if (FESTIVAL.reserveUrl && reserveNote) reserveNote.textContent = "신청서는 새 창에서 열려요 · 마감되면 대기 접수로 안내해 드려요";
 
 /* ---------- 체험 그림: SVG 를 문서 안에 넣어 페이지 글꼴을 쓰게 (실패하면 img 그대로) ---------- */
-document.querySelectorAll("[data-svg]").forEach(async (box) => {
+const svgLoads = [...document.querySelectorAll("[data-svg]")].map(async (box) => {
   try {
     const res = await fetch(box.dataset.svg);
     if (!res.ok) return;
@@ -100,90 +35,172 @@ document.querySelectorAll("[data-svg]").forEach(async (box) => {
   } catch { /* file:// 로 열면 img 로 둔다 */ }
 });
 
-/* ---------- 다섯 단계: 화면에 들어오면 01 → 05 순서로 오렌지가 채워진다 ---------- */
-const steps = [...document.querySelectorAll(".process li")];
-const stepIo = new IntersectionObserver((entries) => {
-  if (!entries.some((e) => e.isIntersecting)) return;
-  stepIo.disconnect();
-  steps.forEach((li, i) => setTimeout(() => li.classList.add("is-on"), reduceMotion ? 0 : i * 220));
-}, { threshold: 0.6 });
-if (steps.length) stepIo.observe(steps[0].parentElement);
+/* ---------- 이니셜 키캡: 이름 이니셜이 바뀌며 찍힌다 ---------- */
+const keycapText = document.getElementById("keycap-text");
+if (keycapText && !reduceMotion) {
+  const names = ["JK", "SY", "MH", "DL", "YJ"];
+  let n = 0;
+  setInterval(() => {
+    n = (n + 1) % names.length;
+    const word = names[n];
+    keycapText.textContent = "";
+    [...word].forEach((ch, i) => setTimeout(() => { keycapText.textContent += ch; }, 160 * (i + 1)));
+  }, 2400);
+}
 
 /* ---------- 움직임 ---------- */
-// GSAP 를 못 불러왔으면 <head> 에서 숨겨 둔 챕터 머리 선을 다시 보이게 한다
 if (!window.gsap || !window.ScrollTrigger) document.documentElement.classList.remove("js-motion");
 
 if (window.gsap && window.ScrollTrigger && !reduceMotion) {
   gsap.registerPlugin(ScrollTrigger);
+  ScrollTrigger.config({ ignoreMobileResize: true });
 
-  // 첫 화면: 헤드라인이 한 줄씩, 일정표가 한 행씩 올라온다
-  gsap.timeline({ defaults: { ease: "power3.out" } })
-    .from(".hero .eyebrow", { opacity: 0, y: 12, duration: 0.4 })
-    .from(".hero__line", { opacity: 0, y: 28, duration: 0.6, stagger: 0.12 }, "-=0.2")
-    .from([".hero__lead", ".hero__cta"], { opacity: 0, y: 16, duration: 0.5, stagger: 0.08 }, "-=0.3")
-    .from(".sheet > div", { opacity: 0, x: 24, duration: 0.4, stagger: 0.06 }, 0.3)
-    .from(".hero__free", { opacity: 0, duration: 0.4 }, "-=0.1");
+  // 맨 위 진행 막대
+  gsap.to(".progress", { scaleX: 1, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 0.3 } });
 
-  // 챕터 전환 1: 챕터 머리 선이 그어지고, 제목과 내용이 화면에 들어오는 순서대로 한 번 올라온다
-  document.querySelector(".hero .eyebrow").classList.add("is-in");
-  ScrollTrigger.batch("main > section:not(.hero) .eyebrow", {
-    start: "top 88%",
-    once: true,
-    onEnter: (els) => els.forEach((el) => el.classList.add("is-in")),
-  });
-  const reveal = [
-    "main > section:not(.hero) .eyebrow", ".band .h2", ".labs .h2", ".band .lead",
-    ".process li", ".keyline", ".paper-block .wrap > *", ".rows li",
-    ".servers__head", ".servers__row", ".band .note",
-    ".initials", ".keycaps", ".badges li",
-    ".steps li", ".reserve__cta", ".faq",
-    ".visit address", ".visit__tel", ".visit__links", ".map",
-  ].join(", ");
-  gsap.set(reveal, { opacity: 0, y: 28 });
-  ScrollTrigger.batch(reveal, {
-    start: "top 90%",
-    once: true,
-    onEnter: (els) => gsap.to(els, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", stagger: 0.07, overwrite: true }),
-  });
-
-  // 챕터 전환 2: 밝은 구역은 경계에서 툭 바뀌지 않고, 들어올 때 어두운 색 → 밝은 색, 나갈 때 다시 어두운 색으로 물든다
-  const DARK = { "--p-bg": "#171717", "--p-ink": "#ffffff", "--p-muted": "#9a9a9a", "--p-line": "#2e2e2e", "--p-card": "#242424" };
-  const PAPER = { "--p-bg": "#fafaf8", "--p-ink": "#171717", "--p-muted": "#5c5c5c", "--p-line": "#e2e1dc", "--p-card": "#ffffff" };
-  const paperZones = [
-    { el: ".paper-block", enter: ["top 90%", "top 50%"], leave: ["bottom 30%", "bottom top"] },
-    { el: ".band--paper", enter: ["top 85%", "top 35%"], leave: ["bottom 65%", "bottom 15%"] },
+  /* 장면 1: 첫 화면이 한 번에 쏟아져 들어온다 */
+  const SPOTS = [
+    { xPercent: 0, yPercent: 0, rotation: -3, zIndex: 3 },
+    { xPercent: 10, yPercent: 9, rotation: 4, zIndex: 2 },
+    { xPercent: 16, yPercent: 18, rotation: -1, zIndex: 1 },
   ];
-  paperZones.forEach(({ el, enter, leave }) => {
-    gsap.fromTo(el, DARK, { ...PAPER, ease: "none", scrollTrigger: { trigger: el, start: enter[0], end: enter[1], scrub: true } });
-    gsap.fromTo(el, PAPER, { ...DARK, ease: "none", immediateRender: false, scrollTrigger: { trigger: el, start: leave[0], end: leave[1], scrub: true } });
+  const shots = gsap.utils.toArray(".shot");
+  shots.forEach((s, i) => gsap.set(s, SPOTS[i]));   // CSS 의 겹침 배치는 .js-motion 이 없을 때만 쓰인다
+
+  gsap.timeline({ defaults: { ease: "power4.out" } })
+    .from(".hero__date", { autoAlpha: 0, y: 20, duration: 0.6 })
+    .from(".hero__sub > span", { autoAlpha: 0, y: 30, duration: 0.6, stagger: 0.12 }, "-=0.3")
+    .from(".hero__big .nb", { autoAlpha: 0, yPercent: 60, duration: 0.9, stagger: 0.14 }, "-=0.35")
+    .from(".chips li", { autoAlpha: 0, scale: 0.7, duration: 0.5, stagger: 0.08, ease: "back.out(2)" }, "-=0.5")
+    .from(".hero .btn--big", { autoAlpha: 0, y: 24, duration: 0.6 }, "-=0.3")
+    .from(shots, { autoAlpha: 0, y: 120, rotation: 18, duration: 1, stagger: 0.12 }, 0.35);
+
+  // 맨 앞 그림이 옆으로 빠져 맨 뒤로 가고, 나머지가 한 칸씩 앞으로 (광고 컷 넘기기)
+  let order = [...shots];
+  const cycle = () => {
+    const front = order.shift();
+    order.push(front);
+    gsap.timeline()
+      .to(front, { xPercent: -70, yPercent: -8, rotation: -16, autoAlpha: 0, duration: 0.45, ease: "power2.in" })
+      .set(front, { ...SPOTS[2], zIndex: 0 })
+      .to(front, { autoAlpha: 1, duration: 0.3 });
+    order.forEach((s, i) => { if (s !== front) gsap.to(s, { ...SPOTS[i], duration: 0.6, ease: "power3.out", delay: 0.15 }); });
+    gsap.delayedCall(0.5, () => order.forEach((s, i) => gsap.set(s, { zIndex: SPOTS[i].zIndex })));
+  };
+  let cycleTimer = setInterval(cycle, 2600);
+  document.addEventListener("visibilitychange", () => {
+    clearInterval(cycleTimer);
+    if (!document.hidden) cycleTimer = setInterval(cycle, 2600);
   });
+
+  // 스크롤하면 첫 화면 글은 위로 물러나고 그림은 다가온다
+  gsap.to(".hero__copy", { yPercent: -18, autoAlpha: 0.15, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
+  gsap.to(".hero__stage", { yPercent: -10, scale: 1.08, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
+
+  // 흐르는 띠: 빨리 스크롤하면 잠깐 빨라진다
+  const tickerRow = document.querySelector(".ticker__row");
+  const tickerAnim = tickerRow.getAnimations ? tickerRow.getAnimations()[0] : null;
+  if (tickerAnim) {
+    let calm;
+    ScrollTrigger.create({
+      onUpdate: (self) => {
+        tickerAnim.playbackRate = 1 + Math.min(Math.abs(self.getVelocity()) / 400, 5);
+        clearTimeout(calm);
+        calm = setTimeout(() => { tickerAnim.playbackRate = 1; }, 160);
+      },
+    });
+  }
 
   const mm = gsap.matchMedia();
-  // 넓고 충분히 높은 화면: 세 가지 체험을 고정해 두고 옆으로 넘긴다 (style.css 의 세로 쌓기 조건과 반대)
-  mm.add("(min-width: 921px) and (min-height: 700px)", () => {
-    const track = document.querySelector(".labs__track");
-    const distance = () => track.scrollWidth - window.innerWidth;
-    gsap.to(track, {
-      x: () => -distance(),
-      ease: "none",
+  // 화면이 너무 낮으면(가로로 눕힌 휴대폰) 장면 고정 없이 세로로 쌓는다. style.css 의 같은 조건과 짝
+  mm.add("(min-height: 560px)", () => {
+    /* 장면 2: 질문이 물러나고 → '따라 만들기'에 줄이 그어지고 → 오렌지가 번지며 답이 나온다 */
+    gsap.from(".ask__q .ask__line", { autoAlpha: 0, y: 50, duration: 0.9, stagger: 0.18, ease: "power3.out", scrollTrigger: { trigger: ".ask", start: "top 65%" } });
+    const aLines = gsap.utils.toArray(".ask__a .ask__line");
+    gsap.set(aLines, { autoAlpha: 0, y: 70 });
+    gsap.set(".ask__a s", { "--strike": 0, "--ask-strike": "#ff542a" });   // 줄 색을 처음부터 적어 둔다 (안 적으면 투명에서 시작)
+    gsap.timeline({
+      defaults: { ease: "power2.out" },
+      scrollTrigger: { trigger: ".ask", start: "top top", end: "+=160%", pin: true, scrub: 0.6, anticipatePin: 1 },
+    })
+      .to({}, { duration: 0.2 })
+      .to(".ask__q", { autoAlpha: 0, y: -90, scale: 0.94, duration: 1 })
+      .to(aLines[0], { autoAlpha: 1, y: 0, duration: 0.8 }, "-=0.3")
+      .to(".ask__a s", { "--strike": 1, duration: 0.5, ease: "power1.inOut" }, "-=0.2")
+      .fromTo(".ask__flood", { clipPath: "circle(0% at 50% 58%)" }, { clipPath: "circle(120% at 50% 58%)", duration: 1.4, ease: "power2.inOut" })
+      .to(".ask__a s", { color: "rgba(23,23,23,0.55)", "--ask-strike": "#171717", duration: 0.5 }, "<0.4")
+      .to(aLines[1], { autoAlpha: 1, y: 0, duration: 1 }, "<0.2")
+      .from(".ask__big b", { scale: 0.6, duration: 0.8, ease: "back.out(2)" }, "<0.3")
+      .to({}, { duration: 0.4 });
+
+    /* 장면 3: 제목은 그냥 스크롤로 지나가고, 카드 세 장만 고정한다.
+       첫 카드는 바로 보이고, 다음 카드가 아래에서 올라와 덮는 전환은 두 번뿐. 스냅 없이 스크롤 그대로 따라간다 */
+    gsap.from(".labs__head > *", { autoAlpha: 0, y: 60, duration: 0.9, stagger: 0.12, ease: "power4.out", scrollTrigger: { trigger: ".labs__head", start: "top 75%" } });
+    const cards = gsap.utils.toArray(".labs .lab");
+    gsap.set(cards.slice(1), { yPercent: 100 });
+    const labs = gsap.timeline({
       scrollTrigger: {
-        trigger: ".labs",
+        trigger: ".labs__stack",
         start: "top top",
-        end: () => `+=${distance()}`,
-        scrub: 0.6,
+        end: () => `+=${(cards.length - 1) * window.innerHeight * 0.85}`,
         pin: true,
+        scrub: 0.5,
         anticipatePin: 1,
         invalidateOnRefresh: true,
       },
     });
+    // fromTo 로 시작·끝 값을 모두 적는다 (invalidateOnRefresh 때 from 은 숨긴 값을 끝 값으로 다시 읽어 버린다)
+    cards.slice(1).forEach((card, i) => {
+      const at = i * 1.25;
+      labs
+        .fromTo(card, { yPercent: 100 }, { yPercent: 0, ease: "power1.inOut", duration: 1 }, at)
+        .fromTo(card.querySelectorAll(".lab__text > *, .lab__art"), { autoAlpha: 0, y: 50 }, { autoAlpha: 1, y: 0, duration: 0.4, stagger: 0.05, ease: "power2.out" }, at + 0.55);
+    });
+    labs.to({}, { duration: 0.25 });   // 마지막 카드를 잠깐 보여 주고 풀린다
+    // 첫 카드는 고정 전에 화면에 들어올 때 한 번 올라온다
+    gsap.from(cards[0].querySelectorAll(".lab__text > *, .lab__art"), { autoAlpha: 0, y: 50, duration: 0.7, stagger: 0.06, ease: "power3.out", scrollTrigger: { trigger: ".labs__stack", start: "top 70%" } });
+
+    /* 장면 4: 운전석과 조수석이 양쪽에서 들어와 만난다 */
+    gsap.timeline({ scrollTrigger: { trigger: ".pair", start: "top 80%", end: "center 55%", scrub: 0.6 } })
+      .from(".pair .kicker", { autoAlpha: 0, y: 30, duration: 0.4 })
+      .from(".seat--kid", { xPercent: -70, autoAlpha: 0, duration: 1 }, 0)
+      .from(".seat--parent", { xPercent: 70, autoAlpha: 0, duration: 1 }, 0)
+      .from(".pair__plus", { scale: 0, rotation: -180, autoAlpha: 0, duration: 0.6 }, 0.5)
+      .from(".pair__foot", { autoAlpha: 0, y: 30, duration: 0.5 }, 0.8);
+
+    /* 장면 6: 키캡이 돌면서 떨어져 내려앉는다 */
+    gsap.fromTo(".keycap", { rotateZ: -80, y: -220, autoAlpha: 0 }, {
+      rotateZ: -28, y: 0, autoAlpha: 1, ease: "none", stagger: 0.15,
+      scrollTrigger: { trigger: ".gift", start: "top 85%", end: "center center", scrub: 0.6 },
+    });
+
+    /* 장면 7: 날짜가 화면을 꽉 채우며 다가온다 */
+    gsap.fromTo(".reserve__date", { scale: 0.55, autoAlpha: 0.2 }, {
+      scale: 1, autoAlpha: 1, ease: "none",
+      scrollTrigger: { trigger: ".reserve", start: "top 90%", end: "center center", scrub: 0.6 },
+    });
   });
 
-  // 키캡: 화면에 들어오면 스크롤에 맞춰 돌며 내려앉는다
-  gsap.fromTo(".keycap", { rotateZ: -70, y: 90 }, {
-    rotateZ: -28,
-    y: 0,
-    ease: "none",
-    stagger: 0.1,
-    scrollTrigger: { trigger: ".reward", start: "top bottom", end: "center center", scrub: true },
+  /* 숫자 세 개: 0 → 숫자로 올라간다 */
+  gsap.utils.toArray(".facts__list li").forEach((li, i) => {
+    const num = li.querySelector("[data-count]");
+    const target = Number(num.dataset.count);
+    const counter = { v: target === 0 ? 99 : 0 };
+    gsap.timeline({ scrollTrigger: { trigger: ".facts", start: "top 75%" }, delay: i * 0.15 })
+      .from(li, { autoAlpha: 0, y: 60, duration: 0.7, ease: "power3.out" })
+      .to(counter, { v: target, duration: 1, ease: "power2.out", onUpdate: () => { num.textContent = Math.round(counter.v); } }, 0);
   });
+
+  /* 나머지: 화면에 들어오면 한 번 올라온다 */
+  const reveal = ".gift__copy > *, .gift__steps li, .reserve .kicker, .reserve__time, .reserve .btn--huge, .reserve__note, .faq__title, .faq details, .visit__info > *, .map";
+  gsap.set(reveal, { autoAlpha: 0, y: 36 });
+  ScrollTrigger.batch(reveal, {
+    start: "top 90%",
+    once: true,
+    onEnter: (els) => gsap.to(els, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power3.out", stagger: 0.07, overwrite: true }),
+  });
+
+  // 체험 그림이 문서 안에 들어오면 높이가 바뀔 수 있어 위치를 다시 잰다
+  Promise.all(svgLoads).then(() => ScrollTrigger.refresh());
+  window.addEventListener("load", () => ScrollTrigger.refresh());
 }
