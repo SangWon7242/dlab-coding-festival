@@ -82,7 +82,9 @@ function loadSeats() {
   document.head.appendChild(tag);
 }
 loadSeats();
-setInterval(() => { if (!document.hidden) loadSeats(); }, 60000);
+// 30초마다 새로 읽고, 다른 탭에 갔다가 돌아오면 바로 한 번 더 읽는다
+setInterval(() => { if (!document.hidden) loadSeats(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadSeats(); });
 // 화면 확인용: 주소 끝에 ?seats=demo 를 붙이면 예시 숫자로 칠해 본다
 if (new URLSearchParams(location.search).get("seats") === "demo") {
   paintSeats({ cap: 4, left: 29, total: 48, updated: new Date().toISOString(), rounds: [

@@ -21,8 +21,12 @@
  *     - 이 주소로 공개되는 건 칸별 남은 자리 숫자뿐이다. 이름·연락처는 나가지 않는다.
  *
  * 운영 중
- *  · 취소가 생기면 폼 [응답] 탭에서 그 응답을 삭제한다 → 5분 안에 자리가 다시 열린다.
+ *  · 취소가 생기면 폼 [응답] 탭에서 그 응답을 삭제한다 → 1분 안에 홈페이지와 폼 선택지에 자리가 다시 열린다.
+ *    (홈페이지가 숫자를 읽어 갈 때마다 다시 세기 때문. 아무도 홈페이지를 보지 않을 때는 5분마다 다시 센다)
  *  · 바로 반영하려면 refreshSeats 를 한 번 [실행].
+ *
+ * 이 파일을 고쳐 붙여 넣은 뒤에는 [배포] → [배포 관리] → 연필 → 버전 '새 버전' → [배포] 를 해야
+ * 홈페이지 주소에 반영된다. (주소는 그대로)
  *  · 정원·시간을 바꾸려면 아래 CAP · ROUNDS 를 고치고 refreshSeats 실행.
  */
 
@@ -94,16 +98,7 @@ function refreshSeats() {
     const props = PropertiesService.getScriptProperties();
     const pick = findPickItem_(form);
     if (!pick) throw new Error('먼저 setupLiveSeats 를 실행해 주세요.');
-
-    const counts = JSON.parse(props.getProperty('base') || 'null') || emptyCounts_();
-    form.getResponses().forEach(r => {
-      const ir = r.getResponseForItem(pick);
-      if (!ir) return;
-      (ir.getResponse() || []).forEach(label => {
-        const k = keyOf_(label);
-        if (k) counts[k.round][k.lab]++;
-      });
-    });
+    const counts = countSeats_(form, pick);
 
     // 폼 선택지 글자에 남은 자리 표시
     const choices = [];
@@ -115,10 +110,9 @@ function refreshSeats() {
     item.setChoices(choices.map(c => item.createChoice(c)));
 
     // 홈페이지가 읽어 갈 숫자
-    const rounds = ROUNDS.map((rd, i) => ({ no: rd.no, time: rd.time, left: LABS.map((_, j) => Math.max(0, CAP - counts[i][j])) }));
-    const left = rounds.reduce((s, r) => s + r.left.reduce((a, b) => a + b, 0), 0);
-    const data = { cap: CAP, labs: LABS, rounds, left, total: CAP * ROUNDS.length * LABS.length, updated: new Date().toISOString() };
+    const data = seatData_(counts);
     props.setProperty('seats', JSON.stringify(data));
+    CacheService.getScriptCache().put('seats', JSON.stringify(data), 15);
     return data;
   } finally {
     lock.releaseLock();
@@ -126,9 +120,20 @@ function refreshSeats() {
 }
 
 /* ---------- 홈페이지용 주소 (웹 앱으로 배포) ---------- */
+// 읽어 갈 때마다 응답 수를 다시 센다 (응답을 지워도 1분 안에 반영). 여러 사람이 동시에 봐도 15초에 한 번만 센다.
+// 숫자가 달라졌으면 폼 선택지 글자도 같이 고친다.
 function doGet(e) {
-  const props = PropertiesService.getScriptProperties();
-  const json = props.getProperty('seats') || JSON.stringify(refreshSeats());
+  const cache = CacheService.getScriptCache();
+  let json = cache.get('seats');
+  if (!json) {
+    const form = FormApp.getActiveForm();
+    const pick = findPickItem_(form);
+    const prev = JSON.parse(PropertiesService.getScriptProperties().getProperty('seats') || 'null');
+    let data = pick ? seatData_(countSeats_(form, pick)) : refreshSeats();
+    if (!prev || JSON.stringify(prev.rounds) !== JSON.stringify(data.rounds)) data = refreshSeats();
+    json = JSON.stringify(data);
+    cache.put('seats', json, 15);
+  }
   const cb = e && e.parameter && e.parameter.callback;
   if (cb && /^[A-Za-z_$][\w$.]{0,60}$/.test(cb)) {
     return ContentService.createTextOutput(`${cb}(${json});`).setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -137,6 +142,23 @@ function doGet(e) {
 }
 
 /* ---------- 도우미 ---------- */
+function countSeats_(form, pick) {
+  const counts = JSON.parse(PropertiesService.getScriptProperties().getProperty('base') || 'null') || emptyCounts_();
+  form.getResponses().forEach(r => {
+    const ir = r.getResponseForItem(pick);
+    if (!ir) return;
+    (ir.getResponse() || []).forEach(label => {
+      const k = keyOf_(label);
+      if (k) counts[k.round][k.lab]++;
+    });
+  });
+  return counts;
+}
+function seatData_(counts) {
+  const rounds = ROUNDS.map((rd, i) => ({ no: rd.no, time: rd.time, left: LABS.map((_, j) => Math.max(0, CAP - counts[i][j])) }));
+  const left = rounds.reduce((s, r) => s + r.left.reduce((a, b) => a + b, 0), 0);
+  return { cap: CAP, labs: LABS, rounds, left, total: CAP * ROUNDS.length * LABS.length, updated: new Date().toISOString() };
+}
 function emptyCounts_() {
   return ROUNDS.map(() => LABS.map(() => 0));
 }
