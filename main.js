@@ -6,7 +6,12 @@
 const FESTIVAL = {
   date: "11/28(토)",
   reserveUrl: "https://forms.gle/8bHkkiPaHuo6ct6r7",   // 예약 신청 구글폼 (응답 주소)
+  // 회차별 남은 자리: docs/google-form/live-seats.gs 를 웹 앱으로 배포한 주소 (https://script.google.com/macros/s/…/exec)
+  // 비어 있으면 표는 '곧 실시간으로 보여 드려요' 상태로 둔다
+  seatsUrl: "https://script.google.com/macros/s/AKfycbyd-6LV4rzxUa7s4cTIAG4Y_QFMYWjBzfGutfIcH9s3VbKFaK9ykUcHUH6KI0WZN1pO/exec",
 };
+const ROUNDS = [{ no: 1, time: "10:00" }, { no: 2, time: "10:45" }, { no: 3, time: "11:30" }, { no: 4, time: "12:15" }];
+const SEAT_CAP = 4;
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -24,6 +29,65 @@ document.querySelectorAll("[data-reserve]").forEach((btn) => {
 });
 const reserveNote = document.querySelector("[data-reserve-note]");
 if (FESTIVAL.reserveUrl && reserveNote) reserveNote.textContent = "신청서는 새 창에서 열려요 · 마감되면 대기 접수로 안내해 드려요";
+
+/* ---------- 회차별 남은 자리 ---------- */
+const board = document.querySelector("[data-board]");
+const seatStatus = document.querySelector("[data-seats-status]");
+const seatSummary = document.querySelector("[data-seats-summary]");
+// 표의 줄은 한 번만 만들고, 숫자만 바꾼다 (화면에 들어올 때 올라오는 움직임이 그대로 남도록)
+ROUNDS.forEach((r) => {
+  const row = document.createElement("div");
+  row.className = "board__row";
+  row.setAttribute("role", "row");
+  row.innerHTML = `<span class="board__time" role="rowheader"><b>${r.no}회</b><span>${r.time}</span></span>` +
+    [0, 1, 2].map(() => `<div class="cell is-wait" role="cell"><span class="cell__dots">${"<b></b>".repeat(SEAT_CAP)}</span><span class="cell__num">—</span></div>`).join("");
+  board.appendChild(row);
+});
+const cells = [...board.querySelectorAll(".cell")];
+const LAB_NAMES = ["아두이노", "레고 놀이기구", "AI 몬스터"];
+
+function paintSeats(data) {
+  ROUNDS.forEach((r, i) => {
+    const round = data.rounds.find((x) => x.no === r.no);
+    [0, 1, 2].forEach((j) => {
+      const cell = cells[i * 3 + j];
+      const cap = data.cap || SEAT_CAP;
+      const left = Math.max(0, Math.min(cap, Number(round ? round.left[j] : cap)));
+      cell.className = "cell" + (left === 0 ? " is-full" : left === 1 ? " is-low" : "");
+      [...cell.querySelectorAll(".cell__dots b")].forEach((b, k) => b.classList.toggle("is-taken", k >= left));
+      cell.querySelector(".cell__num").innerHTML = left === 0 ? "마감<small>대기 접수</small>" : `${left}<small>자리</small>`;
+      cell.setAttribute("aria-label", `${r.no}회 ${r.time} ${LAB_NAMES[j]}: ${left === 0 ? "마감, 대기 접수 가능" : `${left}자리 남음`}`);
+    });
+  });
+  const total = data.total || ROUNDS.length * 3 * SEAT_CAP;
+  const time = new Date(data.updated || Date.now());
+  const hhmm = time.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
+  seatStatus.textContent = `실시간 · ${hhmm} 기준 · 전체 ${total}자리 중 ${data.left}자리 남음`;
+  if (seatSummary) seatSummary.innerHTML = data.left > 0 ? `지금 남은 자리 <b>${data.left}</b> / ${total}` : "전 회차 마감 · 대기 접수 중";
+}
+
+// 구글 앱스 스크립트 웹 앱은 다른 주소라서 JSONP(스크립트 태그)로 읽는다
+function loadSeats() {
+  if (!FESTIVAL.seatsUrl) {
+    seatStatus.textContent = "남은 자리는 곧 여기에서 실시간으로 보여 드려요";
+    return;
+  }
+  const cb = `__seats${Date.now()}`;
+  const tag = document.createElement("script");
+  const done = () => { delete window[cb]; tag.remove(); clearTimeout(timer); };
+  const timer = setTimeout(() => { done(); if (seatStatus.textContent.startsWith("실시간 현황")) seatStatus.textContent = "현황을 불러오지 못했어요 · 예약 페이지에서 확인해 주세요"; }, 10000);
+  window[cb] = (data) => { done(); if (data && Array.isArray(data.rounds)) paintSeats(data); };
+  tag.src = `${FESTIVAL.seatsUrl}${FESTIVAL.seatsUrl.includes("?") ? "&" : "?"}callback=${cb}`;
+  tag.onerror = () => { done(); seatStatus.textContent = "현황을 불러오지 못했어요 · 예약 페이지에서 확인해 주세요"; };
+  document.head.appendChild(tag);
+}
+loadSeats();
+setInterval(() => { if (!document.hidden) loadSeats(); }, 60000);
+// 화면 확인용: 주소 끝에 ?seats=demo 를 붙이면 예시 숫자로 칠해 본다
+if (new URLSearchParams(location.search).get("seats") === "demo") {
+  paintSeats({ cap: 4, left: 29, total: 48, updated: new Date().toISOString(), rounds: [
+    { no: 1, left: [0, 1, 2] }, { no: 2, left: [3, 0, 2] }, { no: 3, left: [4, 2, 1] }, { no: 4, left: [4, 4, 4] }] });
+}
 
 /* ---------- 체험 그림: SVG 를 문서 안에 넣어 페이지 글꼴을 쓰게 (실패하면 img 그대로) ---------- */
 const svgLoads = [...document.querySelectorAll("[data-svg]")].map(async (box) => {
@@ -192,7 +256,7 @@ if (window.gsap && window.ScrollTrigger && !reduceMotion) {
   });
 
   /* 나머지: 화면에 들어오면 한 번 올라온다 */
-  const reveal = ".gift__copy > *, .gift__steps li, .reserve .kicker, .reserve__time, .reserve .btn--huge, .reserve__note, .faq__title, .faq details, .visit__info > *, .map";
+  const reveal = ".seats__head > *, .board__row, .seats__foot > *, .gift__copy > *, .gift__steps li, .reserve .kicker, .reserve__time, .reserve .btn--huge, .reserve__note, .faq__title, .faq details, .visit__info > *, .map";
   gsap.set(reveal, { autoAlpha: 0, y: 36 });
   ScrollTrigger.batch(reveal, {
     start: "top 90%",
