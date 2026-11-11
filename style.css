@@ -423,6 +423,12 @@ html:not(.js-motion) .shot:nth-child(3) { z-index: 1; transform: translate(16%, 
 .seats__head .kicker { margin-bottom: 8px; }
 .seats__title { margin: 0; font-weight: 900; font-size: clamp(46px, 7.4vw, 112px); line-height: 1.05; letter-spacing: -0.04em; }
 .seats__live { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-size: clamp(14px, 1.3vw, 16px); font-weight: 700; color: var(--muted); }
+/* 네모 보는 법: 빈 네모 = 예약 가능, 오렌지 네모 = 예약됨, 회색 = 마감 */
+.legend { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.legend li { display: inline-flex; align-items: center; gap: 8px; font-size: clamp(14px, 1.3vw, 16px); font-weight: 700; color: #dcdcdc; }
+.legend__seat { width: 18px; height: 18px; border: 2px solid var(--orange); }
+.legend__seat.is-taken { background: var(--orange); }
+.legend__seat.is-full { border-color: #3a3a3a; background: #3a3a3a; }
 .board { border-top: 4px solid #fff; }
 .board__row {
   display: grid;

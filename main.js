@@ -55,7 +55,7 @@ function paintSeats(data) {
       const left = Math.max(0, Math.min(cap, Number(round ? round.left[j] : cap)));
       cell.className = "cell" + (left === 0 ? " is-full" : left === 1 ? " is-low" : "");
       [...cell.querySelectorAll(".cell__dots b")].forEach((b, k) => b.classList.toggle("is-taken", k >= left));
-      cell.querySelector(".cell__num").innerHTML = left === 0 ? "마감<small>대기 접수</small>" : `${left}<small>자리</small>`;
+      cell.querySelector(".cell__num").innerHTML = left === 0 ? "마감<small>대기 접수</small>" : `${left}<small>자리 남음</small>`;
       cell.setAttribute("aria-label", `${r.no}회 ${r.time} ${LAB_NAMES[j]}: ${left === 0 ? "마감, 대기 접수 가능" : `${left}자리 남음`}`);
     });
   });
@@ -256,7 +256,7 @@ if (window.gsap && window.ScrollTrigger && !reduceMotion) {
   });
 
   /* 나머지: 화면에 들어오면 한 번 올라온다 */
-  const reveal = ".seats__head > *, .board__row, .seats__foot > *, .gift__copy > *, .gift__steps li, .reserve .kicker, .reserve__time, .reserve .btn--huge, .reserve__note, .faq__title, .faq details, .visit__info > *, .map";
+  const reveal = ".seats__head > *, .legend, .board__row, .seats__foot > *, .gift__copy > *, .gift__steps li, .reserve .kicker, .reserve__time, .reserve .btn--huge, .reserve__note, .faq__title, .faq details, .visit__info > *, .map";
   gsap.set(reveal, { autoAlpha: 0, y: 36 });
   ScrollTrigger.batch(reveal, {
     start: "top 90%",
